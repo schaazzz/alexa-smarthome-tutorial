@@ -1,4 +1,6 @@
-# Copyright 2022 Shahzeb Ihsan (https://github.com/schaazzz)
+# MIT License
+# ---
+# Copyright (c) 2022 Shahzeb Ihsan (https://github.com/schaazzz)
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files
 # (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge,
@@ -11,6 +13,8 @@
 # OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# ---
+
 
 import sys
 import json
@@ -53,7 +57,7 @@ def read_creds():
     global client_secret
     global access_token
     global refresh_token
-    
+
     with open(CRED_PATH, 'r') as cred_file:
         cred_json = json.load(cred_file)
         auth_code = cred_json['authCode']
@@ -63,11 +67,15 @@ def read_creds():
         refresh_token = cred_json['refreshToken']
 
 def write_creds():
-    with open(CRED_PATH, 'w') as cred_file:
-        cred_json['refreshToken'] = refresh_token
-        cred_json['accessToken'] = access_token
-        cred_json['lastUpdated'] = get_timestamp()
-        json.dump(cred_json, cred_file, indent = 4)
+    try:
+        with open(CRED_PATH, 'w') as cred_file:
+            cred_json['refreshToken'] = refresh_token
+            cred_json['accessToken'] = access_token
+            cred_json['lastUpdated'] = get_timestamp()
+            json.dump(cred_json, cred_file, indent = 4)
+            return True
+    except:
+        return False
 
 def trigger_doorbell():
     headers = {
@@ -99,14 +107,14 @@ def trigger_doorbell():
         },
     }
 
+    print('- Sending doorbell event.......', end = '')
+
     response = requests.post(
         event_gateway + '?Authorization=Bearer ' + access_token,
         headers = headers,
         json=json_data,
     )
 
-
-    print('- Sending doorbell event.......', end = '')
     if response.status_code != HTTP_RESPONSE_ACCEPTED:
         response_json = response.json()
         print(response_json['payload']['code'] + '!')
@@ -122,6 +130,8 @@ def refresh_access_tokens():
     global access_token
     global refresh_token
 
+    status = False
+
     headers = {
         'charset': 'UTF-8',
     }
@@ -133,10 +143,12 @@ def refresh_access_tokens():
         'client_secret': client_secret
     }
 
+    print('- Refreshing access tokens.....', end = '')
+
     response = requests.post(LWA_TOKEN_URI, headers = headers, data = data)
     response_json = response.json()
-
-    print('- Refreshing access tokens.....', end = '')
+    print(response)
+    print(response_json)
     if response.status_code != HTTP_RESPONSE_OK:
         print(response_json['payload']['code'] + '!')
         print(json.dumps(response_json, indent = 2))
@@ -144,11 +156,19 @@ def refresh_access_tokens():
         print('OK!')
         access_token = response_json['access_token']
         refresh_token = response_json['refresh_token']
-        write_creds()
+        if write_creds():
+            print('OK!')
+            status = True
+        else:
+            print('ERROR!\n  (Unable to parse/write credentials)')
+
+    return status
 
 def request_access_tokens():
     global access_token
     global refresh_token
+
+    status = False
 
     headers = {
         'charset': 'UTF-8',
@@ -161,18 +181,24 @@ def request_access_tokens():
         'client_secret': client_secret
     }
 
+    print('- Requesting access tokens.....', end = '')
+
     response = requests.post(LWA_TOKEN_URI, headers = headers, data = data)
     response_json = response.json()
 
-    print('- Requesting access tokens.....', end = '')
     if response.status_code != HTTP_RESPONSE_OK:
-        print(response_json['payload']['code'] + '!')
+        print(response_json['error'].upper() + '!')
         print(json.dumps(response_json, indent = 2))
     else:
-        print('OK!')
         access_token = response_json['access_token']
         refresh_token = response_json['refresh_token']
-        write_creds()
+        if write_creds():
+            print('OK!')
+            status = True
+        else:
+            print('ERROR!\n  (Unable to parse/write credentials)')
+    
+    return status
 
 if __name__ == '__main__':
     if ALEXA_REGION == 'eu-west-1':
@@ -189,7 +215,9 @@ if __name__ == '__main__':
 
     if access_token == '' or refresh_token == '':
         print('- One or more access tokens missing in credentials file')
-        request_access_tokens()
+        
+        if not request_access_tokens():
+            sys.exit(-1)
     else:
         print('- Access tokens found in credentials file')
     if len(sys.argv) > 1 and sys.argv[1] == 'press':
