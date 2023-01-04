@@ -54,7 +54,6 @@ class AlexaResponse:
         self.context_properties.append(self.create_context_property(**kwargs))
 
     def add_cookie(self, key, value):
-
         if "cookies" in self is None:
             self.cookies = {}
 
@@ -133,5 +132,5 @@ class AlexaResponse:
 
         self.event['payload']['endpoints'] = payload_endpoints
     
-    def get_timestamp(self):
+    def get_timestamp():
         return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")

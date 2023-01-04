@@ -1,26 +1,29 @@
-# MIT License
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Amazon Software License (the "License"). You may not use this file except in
+# compliance with the License. A copy of the License is located at
+#
+#   http://aws.amazon.com/asl/
+#
+# or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 # ---
-# Copyright (c) 2022 Shahzeb Ihsan (https://github.com/schaazzz)
-
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files
-# (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge,
-# publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
-# subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-# LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# This source file has been modified. It's original version can be found in the following repository:
+#   https://github.com/alexa-samples/skill-sample-python-smarthome-switch
 # ---
 
 import boto3
 import json
-from alexa.skills.smarthome import AlexaResponse
 from botocore.config import Config
 
-boto3.client('dynamodb', config=Config(region_name = 'eu-west-1'))
+from alexa.skills.smarthome import AlexaResponse
+
+ALEXA_REGION = 'eu-west-1'
+DYNAMODB_TABLE_NAME = 'alexa-smarthome-tutorial'
+
+boto3.client('dynamodb', config=Config(region_name = ALEXA_REGION))
 aws_dynamodb = boto3.client('dynamodb')
 
 def lambda_handler(request, context):
@@ -83,7 +86,7 @@ def lambda_handler(request, context):
         power_state_value = 'OFF' if name == 'TurnOff' else 'ON'
         correlation_token = request['directive']['header']['correlationToken']
 
-        state_set = set_device_state(endpoint_id=endpoint_id, state='powerState', value=power_state_value)
+        state_set = set_device_state(endpoint_id=endpoint_id, state='powerState', value=power_state_value, use_dynamodb = True)
         if not state_set:
             return send_error_response('ENDPOINT_UNREACHABLE', 'Error while trying to set endpoint state in the database')
 
@@ -100,20 +103,25 @@ def send_error_response(type, message):
     )
 
 def send_response(response):
-    # TODO Validate the response
-    print('lambda_handler response -----')
-    print(json.dumps(response))
+    print('- send_response(...), response:')
+    print(json.dumps(response), indent = 2)
     return response
 
+def set_device_state(endpoint_id, state, value, use_dynamodb = True):
+    if use_dynamodb:
+        attribute_key = state + 'Value'
+        response = aws_dynamodb.update_item(
+            TableName = DYNAMODB_TABLE_NAME,
+            Key={'ItemId': {'S': endpoint_id}},
+            AttributeUpdates={attribute_key: {'Action': 'PUT', 'Value': {'S': value}}})
 
-def set_device_state(endpoint_id, state, value):
-    attribute_key = state + 'Value'
-    response = aws_dynamodb.update_item(
-        TableName = 'SampleSmartHome',
-        Key={'ItemId': {'S': endpoint_id}},
-        AttributeUpdates={attribute_key: {'Action': 'PUT', 'Value': {'S': value}}})
-    print(response)
-    if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-        return True
+        print('- set_device_state(...), response:')
+        print(response)
+
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            return True
+        else:
+            return False
+
     else:
         return False

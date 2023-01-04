@@ -147,8 +147,7 @@ def refresh_access_tokens():
 
     response = requests.post(LWA_TOKEN_URI, headers = headers, data = data)
     response_json = response.json()
-    print(response)
-    print(response_json)
+
     if response.status_code != HTTP_RESPONSE_OK:
         print(response_json['payload']['code'] + '!')
         print(json.dumps(response_json, indent = 2))
@@ -222,4 +221,3 @@ if __name__ == '__main__':
         print('- Access tokens found in credentials file')
     if len(sys.argv) > 1 and sys.argv[1] == 'press':
         trigger_doorbell()
-    
