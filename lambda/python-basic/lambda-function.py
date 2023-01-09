@@ -21,7 +21,7 @@ from botocore.config import Config
 from alexa.skills.smarthome import AlexaResponse
 
 ALEXA_REGION = 'eu-west-1'
-DYNAMODB_TABLE_NAME = 'alexa-smarthome-tutorial'
+DYNAMODB_TABLE_NAME = 'SmartHomeStates'
 
 boto3.client('dynamodb', config=Config(region_name = ALEXA_REGION))
 aws_dynamodb = boto3.client('dynamodb')
@@ -86,13 +86,13 @@ def lambda_handler(request, context):
         power_state_value = 'OFF' if name == 'TurnOff' else 'ON'
         correlation_token = request['directive']['header']['correlationToken']
 
-        state_set = set_device_state(endpoint_id=endpoint_id, state='powerState', value=power_state_value, use_dynamodb = True)
-        if not state_set:
-            return send_error_response('ENDPOINT_UNREACHABLE', 'Error while trying to set endpoint state in the database')
+        # state_set = set_device_state(endpoint_id = endpoint_id, state = 'powerState', value = power_state_value, use_dynamodb = True)
+        # if not state_set:
+        #     return send_error_response('ENDPOINT_UNREACHABLE', 'Error while trying to set endpoint state in the database')
 
-        apcr = AlexaResponse(correlation_token=correlation_token)
-        apcr.add_context_property(namespace = 'Alexa.PowerController', name = 'powerState', value = power_state_value)
-        return send_response(apcr.get())
+        response_powercontroller = AlexaResponse(correlation_token = correlation_token)
+        response_powercontroller.add_context_property(namespace = 'Alexa.PowerController', name = 'powerState', value = power_state_value)
+        return send_response(response_powercontroller.get())
 
 def send_error_response(type, message):
     return send_response(
@@ -109,11 +109,20 @@ def send_response(response):
 
 def set_device_state(endpoint_id, state, value, use_dynamodb = True):
     if use_dynamodb:
-        attribute_key = state + 'Value'
         response = aws_dynamodb.update_item(
             TableName = DYNAMODB_TABLE_NAME,
-            Key={'ItemId': {'S': endpoint_id}},
-            AttributeUpdates={attribute_key: {'Action': 'PUT', 'Value': {'S': value}}})
+            Key = {
+                'ItemId': {
+                    'S': endpoint_id
+                }
+            },
+            AttributeUpdates = {
+                'ItemState': {
+                    'Action': 'PUT',
+                    'Value': {'M': {state + 'Value': value}}
+                }
+            }
+        )
 
         print('- set_device_state(...), response:')
         print(response)
