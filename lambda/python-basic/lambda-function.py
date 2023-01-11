@@ -21,7 +21,7 @@ from botocore.config import Config
 from alexa.skills.smarthome import AlexaResponse
 
 ALEXA_REGION = 'eu-west-1'
-DYNAMODB_TABLE_NAME = 'SmartHomeStates'
+DYNAMODB_TABLE_NAME = 'smart-home-states'
 
 boto3.client('dynamodb', config=Config(region_name = ALEXA_REGION))
 aws_dynamodb = boto3.client('dynamodb')
@@ -112,12 +112,12 @@ def set_device_state(endpoint_id, state, value, use_dynamodb = True):
         response = aws_dynamodb.update_item(
             TableName = DYNAMODB_TABLE_NAME,
             Key = {
-                'ItemId': {
+                'item.id': {
                     'S': endpoint_id
                 }
             },
             AttributeUpdates = {
-                'ItemState': {
+                'item.state': {
                     'Action': 'PUT',
                     'Value': {'M': {state + 'Value': value}}
                 }
