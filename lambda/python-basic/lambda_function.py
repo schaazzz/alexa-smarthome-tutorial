@@ -28,7 +28,7 @@ aws_dynamodb = boto3.client('dynamodb')
 
 def lambda_handler(request, context):
     print('- lambda_handler(...), request:')
-    print(json.dumps(request), indent = 2)
+    print(json.dumps(request))
 
     print('- lambda_handler(...), context:')
     print(context)
@@ -63,7 +63,9 @@ def lambda_handler(request, context):
 
             capability_powercontroller = response_discovery.create_payload_endpoint_capability(
                 interface = 'Alexa.PowerController',
-                supported = [{'name': 'powerState'}]
+                supported = [{'name': 'powerState'}],
+                proactively_reported = True,
+                retrievable = True
             )
 
             response_discovery.add_payload_endpoint(
@@ -86,9 +88,9 @@ def lambda_handler(request, context):
         power_state_value = 'OFF' if name == 'TurnOff' else 'ON'
         correlation_token = request['directive']['header']['correlationToken']
 
-        # state_set = set_device_state(endpoint_id = endpoint_id, state = 'powerState', value = power_state_value, use_dynamodb = True)
-        # if not state_set:
-        #     return send_error_response('ENDPOINT_UNREACHABLE', 'Error while trying to set endpoint state in the database')
+        state_set = set_device_state(endpoint_id = endpoint_id, state = 'powerState', value = power_state_value, use_dynamodb = True)
+        if not state_set:
+            return send_error_response('ENDPOINT_UNREACHABLE', 'Error while trying to set endpoint state in the database')
 
         response_powercontroller = AlexaResponse(correlation_token = correlation_token)
         response_powercontroller.add_context_property(namespace = 'Alexa.PowerController', name = 'powerState', value = power_state_value)
@@ -104,7 +106,7 @@ def send_error_response(type, message):
 
 def send_response(response):
     print('- send_response(...), response:')
-    print(json.dumps(response), indent = 2)
+    print(json.dumps(response))
     return response
 
 def set_device_state(endpoint_id, state, value, use_dynamodb = True):
@@ -112,14 +114,18 @@ def set_device_state(endpoint_id, state, value, use_dynamodb = True):
         response = aws_dynamodb.update_item(
             TableName = DYNAMODB_TABLE_NAME,
             Key = {
-                'item.id': {
-                    'S': endpoint_id
-                }
+                'item.id': { 'S': endpoint_id }
             },
             AttributeUpdates = {
                 'item.state': {
                     'Action': 'PUT',
-                    'Value': {'M': {state + 'Value': value}}
+                    'Value': {
+                        'M': {
+                            state + 'Value': {
+                                'S': value
+                            }
+                        }
+                    }
                 }
             }
         )

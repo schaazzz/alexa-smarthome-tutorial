@@ -132,5 +132,5 @@ class AlexaResponse:
 
         self.event['payload']['endpoints'] = payload_endpoints
     
-    def get_timestamp():
+    def get_timestamp(self):
         return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
