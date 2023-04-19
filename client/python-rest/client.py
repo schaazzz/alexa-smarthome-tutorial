@@ -27,7 +27,7 @@ HTTP_RESPONSE_ACCEPTED = 202
 
 ALEXA_REGION = 'eu-west-1'
 
-DOORBELL_ENDPOINT_ID = 'sample-doorbell-01'
+DOORBELL_ENDPOINT_ID = 'sample-doorbell-001'
 
 CRED_PATH = "..\\..\\.credentials"
 

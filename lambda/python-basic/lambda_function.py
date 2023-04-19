@@ -78,6 +78,7 @@ def lambda_handler(request, context):
             response_discovery.add_payload_endpoint(
                 friendly_name = 'Sample Switch',
                 endpoint_id = 'sample-switch-001',
+                display_categories = ["SWITCH"],
                 capabilities = [capability_alexa, capability_powercontroller]
             )
 
@@ -96,6 +97,16 @@ def lambda_handler(request, context):
         response_powercontroller.add_context_property(namespace = 'Alexa.PowerController', name = 'powerState', value = power_state_value)
         return send_response(response_powercontroller.get())
 
+    if namespace == 'Alexa' and name == 'ReportState':
+        endpoint_id = request['directive']['endpoint']['endpointId']
+        correlation_token = request['directive']['header']['correlationToken']
+        
+        state = get_device_state(endpoint_id = endpoint_id, use_dynamodb = True)
+        
+        response_statereport = AlexaResponse(correlation_token = correlation_token, namespace = 'Alexa', name = 'StateReport', endpoint_id = endpoint_id, cookie = {})
+        response_statereport.add_context_property(namespace = 'Alexa.PowerController', name = 'powerState', value = state)
+        return send_response(response_statereport.get())
+
 def send_error_response(type, message):
     return send_response(
         AlexaResponse(
@@ -108,6 +119,18 @@ def send_response(response):
     print('- send_response(...), response:')
     print(json.dumps(response))
     return response
+
+def get_device_state(endpoint_id, use_dynamodb = True):
+    if use_dynamodb:
+            response = aws_dynamodb.get_item(
+                TableName = DYNAMODB_TABLE_NAME,
+                Key = {
+                    'item.id': { 'S': endpoint_id }
+                }
+            )
+
+            return response['Item']['item.state']['M']['powerStateValue']['S']
+
 
 def set_device_state(endpoint_id, state, value, use_dynamodb = True):
     if use_dynamodb:
