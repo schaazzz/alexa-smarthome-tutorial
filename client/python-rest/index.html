@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Doorbell Demo</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {
+                background-color: #222;
+                font-family: sans-serif;
+                color: #fff;
+            }
+            .container {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                padding: 0 2rem;
+            }
+            .doorbell {
+                display: inline-block;
+                width: 40%;
+                max-width: 200px;
+                margin-right: 1rem;
+                transition: transform 0.1s ease-in-out;
+                cursor: pointer;
+            }
+            .doorbell:hover {
+                transform: scale(1.05);
+            }
+            .switch-container {
+                display: inline-block;
+                width: 40%;
+                max-width: 300px;
+                text-align: center;
+                cursor: pointer;
+                position: relative;
+            }
+            .switch-container .switch {
+                display: inline-block;
+                background-color: #444;
+                border-radius: 50px;
+                height: 75px;
+                width: 150px;
+                position: relative;
+                overflow: hidden;
+                margin: 0 auto;
+            }
+            .switch-container .switch:before {
+                content: "";
+                display: block;
+                position: absolute;
+                background-color: #888;
+                border-radius: 50%;
+                height: 65px;
+                width: 65px;
+                top: 5px;
+                left: 5px;
+                transition: transform 0.3s ease-in-out;
+            }
+            .switch-container .switch.on:before {
+                transform: translateX(75px);
+            }
+            .switch-label {
+                display: block;
+                font-size: 1.5rem;
+                margin-top: 1rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="doorbell" onmousedown="handleMouseDown()" onmouseup="handleMouseUp()">
+                <img id="bell-img" src="/static/bell.png" alt="Doorbell" style="width: 100%;">
+            </div>
+            <div class="switch-container" onclick="toggleSwitch()">
+                <div class="switch"></div>
+                <div class="switch-label">OFF</div>
+            </div>
+        </div>
+        <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+        <script>
+            $(document).ready(function() {
+                setInterval(function() {
+                    $.ajax({
+                        type: "GET",
+                        url: "/remote_switch_change",
+                        dataType: "json",
+                        success: function(response) {
+                            if (response.status === "new-value") {
+                                console.log(response)
+                                updateToggleSwitchState(response.value == "ON")
+                            }
+                        }
+                    });
+                }, 500);
+            }); 
+        </script>
+        <script>
+            let switchOn = false;
+            
+            function handleMouseDown() {
+                console.log("Ding!");
+                document.getElementById("bell-img").style.transform = "scale(0.9)";
+                
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/doorbell_pressed');
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.send(JSON.stringify({}));
+            }
+
+            function handleMouseUp() {
+                console.log("Dong!");
+                document.getElementById("bell-img").style.transform = "scale(1)";
+            }
+
+            function toggleSwitch() {
+                console.log("...");
+                switchOn = !switchOn;
+                document.querySelector(".switch").classList.toggle("on");
+                document.querySelector(".switch-label").innerHTML = switchOn ? "ON" : "OFF";
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/physical_switch_change');
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.send(JSON.stringify({'checkbox_state': switchOn}));
+            }
+
+            function updateToggleSwitchState(switchOn) {
+                document.querySelector(".switch").classList.toggle("on", switchOn);
+                document.querySelector(".switch-label").innerHTML = switchOn ? "ON" : "OFF";
+            }
+        </script>
+    </body>
+</html>
